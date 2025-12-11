@@ -3,7 +3,6 @@ import tensorflow as tf
 import numpy as np
 import joblib
 from PIL import Image
-from keras.layers import InputLayer
 
 # ==============================
 # KONFIGURASI TAMPILAN APP
@@ -14,73 +13,62 @@ st.set_page_config(
     page_icon="🧪"
 )
 
-# Custom CSS untuk dashboard elegan
+# ==============================
+# CUSTOM CSS
+# ==============================
 st.markdown("""
 <style>
-    .main {
-        background-color: #f5f7fa;
-    }
     .title-text {
         text-align: center;
-        font-size: 42px;
+        font-size: 40px;
         font-weight: bold;
         color: #1f2937;
-        margin-bottom: -10px;
     }
     .subtitle-text {
         text-align: center;
         font-size: 18px;
         color: #6b7280;
-        margin-bottom: 30px;
+        margin-bottom: 25px;
     }
     .card {
         background-color: white;
-        padding: 25px;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.07);
-        margin-bottom: 20px;
+        padding: 20px;
+        border-radius: 14px;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+        margin-bottom: 18px;
     }
     .result-card {
         background-color: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.10);
-        margin-bottom: 15px;
+        padding: 14px;
+        border-radius: 12px;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+        margin-bottom: 10px;
     }
 </style>
 """, unsafe_allow_html=True)
 
 # ==============================
-# LOAD MODEL CNN (FEATURE EXTRACTOR)
+# LOAD CNN MODELS
 # ==============================
 @st.cache_resource
 def load_cnn_models():
-    model_A = tf.keras.models.load_model(
-        "salinansalinanensemble_model_A_mae=0.2405_mse=0.2971.h5",
-        custom_objects={"InputLayer": InputLayer}
-    )
-    model_B = tf.keras.models.load_model(
-        "salinansalinanensemble_model_B_mae=0.6032_mse=0.7509.h5",
-        custom_objects={"InputLayer": InputLayer}
-    )
-    model_C = tf.keras.models.load_model(
-        "salinansalinanensemble_model_C_mae=0.5556_mse=0.6772.h5",
-        custom_objects={"InputLayer": InputLayer}
-    )
+    model_A = tf.keras.models.load_model("salinansalinanensemble_model_A_mae=0.2405_mse=0.2971.h5")
+    model_B = tf.keras.models.load_model("salinansalinanensemble_model_B_mae=0.6032_mse=0.7509.h5")
+    model_C = tf.keras.models.load_model("salinansalinanensemble_model_C_mae=0.5556_mse=0.6772.h5")
     return model_A, model_B, model_C
 
 model_A, model_B, model_C = load_cnn_models()
 
 # ==============================
-# LOAD MODEL STACKING XGB
+# LOAD MODEL SVR STACKING
 # ==============================
 @st.cache_resource
-def load_stacking_model():
+def load_svr():
     svr_model = joblib.load("ABC_SVR.pkl")
     scaler = joblib.load("standarscaler.pkl")
     return svr_model, scaler
 
-svr_model, scaler = load_stacking_model()
+svr_model, scaler = load_svr()
 
 # ==============================
 # PREPROCESS GAMBAR
@@ -95,9 +83,6 @@ def preprocess_image(img):
 # KLASIFIKASI MUTU
 # ==============================
 def classify_quality(pred, toleransi_protein=1, toleransi_serat=1):
-    # pred = array dengan urutan:
-    # [Bahan Kering, Air, Abu, Protein, Lemak, Serat, Cangkang]
-
     air = float(pred[1])
     abu = float(pred[2])
     protein = float(pred[3])
@@ -105,28 +90,18 @@ def classify_quality(pred, toleransi_protein=1, toleransi_serat=1):
     serat = float(pred[5])
     cangkang = float(pred[6])
 
-    # =============================
-    # LOGIKA MUTU 1 + BORDERLINE
-    # =============================
     kondisi_mutu1 = (
         air <= 12 and
         abu <= 5 and
-        protein >= 16 - toleransi_protein and
+        protein >= (16 - toleransi_protein) and
         lemak <= 9 and
-        serat <= 16 + toleransi_serat and
+        serat <= (16 + toleransi_serat) and
         cangkang <= 10
     )
 
     if kondisi_mutu1:
-        # Borderline jika protein <16 ATAU serat >16
-        if protein < 16 or serat > 16:
-            return "Mutu 1"
-        else:
-            return "Mutu 1"
+        return "Mutu 1"
 
-    # =============================
-    # LOGIKA MUTU 2
-    # =============================
     kondisi_mutu2 = (
         air <= 12 and
         abu <= 6 and
@@ -139,77 +114,69 @@ def classify_quality(pred, toleransi_protein=1, toleransi_serat=1):
     if kondisi_mutu2:
         return "Mutu 2"
 
-    # =============================
-    # TIDAK MUTU
-    # =============================
     return "Tidak Mutu"
 
-
 # ==============================
-# UI DASHBOARD
+# UI TAMPILAN
 # ==============================
-
-# Title
 st.markdown("<p class='title-text'>🔬 Prediksi Gizi Bungkil Inti Sawit</p>", unsafe_allow_html=True)
 st.markdown("<p class='subtitle-text'>Model Multimodal: CNN Feature Extractor + SVR Stacking</p>", unsafe_allow_html=True)
 
-# Layout utama
-col_left, col_right = st.columns([1, 2])
+col1, col2 = st.columns([1, 2])
 
 # ==============================
-# BOX UPLOAD GAMBAR
+# UPLOAD GAMBAR
 # ==============================
-with col_left:
+with col1:
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.write("### 📤 Upload Gambar Sampel")
-    uploaded = st.file_uploader("Pilih file gambar (jpg/jpeg/png)", type=["jpg", "jpeg", "png"])
+
+    uploaded = st.file_uploader("Pilih gambar (jpg/jpeg/png)", type=["jpg", "jpeg", "png"])
 
     if uploaded:
-        image = Image.open(uploaded)
-        st.image(image, caption="Gambar Sampel", width=350)
+        img = Image.open(uploaded)
+        st.image(img, caption="Gambar Sampel", width=330)
 
     st.markdown("</div>", unsafe_allow_html=True)
 
 # ==============================
-# BOX HASIL PREDIKSI
+# HASIL PREDIKSI
 # ==============================
-with col_right:
+with col2:
     st.markdown("<div class='card'>", unsafe_allow_html=True)
     st.write("### 📊 Hasil Prediksi")
 
     if uploaded and st.button("🔎 Jalankan Prediksi", use_container_width=True):
         try:
-            img_array = preprocess_image(image)
+            img_array = preprocess_image(img)
 
-            # Ekstraksi fitur CNN
+            # CNN FEATURE
             feat_A = model_A.predict(img_array)[0]
             feat_B = model_B.predict(img_array)[0]
             feat_C = model_C.predict(img_array)[0]
 
-            # Concatenate feature (berdasarkan training)
+            # GABUNGKAN FITUR
             X_ABC = np.concatenate([feat_A, feat_B, feat_C]).reshape(1, -1)
 
-            # Prediksi
+            # PREDIKSI SVR
             y_scaled = svr_model.predict(X_ABC)
-            y_pred = scaler.inverse_transform(y_scaled)[0]
+            y_pred = scaler.inverse_transform(y_scaled.reshape(1, -1))[0]
 
-            target_names = [
+            labels = [
                 "Bahan Kering","Air","Abu","Protein Kasar",
                 "Lemak Kasar","Serat Kasar","Cangkang"
             ]
 
-            # Tampilkan prediksi dalam card
-            for i, name in enumerate(target_names):
+            for i, lab in enumerate(labels):
                 st.markdown(
-                    f"<div class='result-card'><b>{name}:</b> {y_pred[i]:.2f}</div>",
+                    f"<div class='result-card'><b>{lab}:</b> {y_pred[i]:.2f}</div>",
                     unsafe_allow_html=True
                 )
 
-            # Klasifikasi mutu
             kategori = classify_quality(y_pred)
             st.success(f"🏷️ Klasifikasi Mutu: **{kategori}**")
 
         except Exception as e:
-            st.error(f"Terjadi error saat prediksi: {e}")
+            st.error(f"❌ Error saat prediksi: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
