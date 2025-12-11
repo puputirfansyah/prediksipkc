@@ -64,9 +64,6 @@ model_A, model_B, model_C = load_cnn_models()
 # LOAD MODEL SVR STACKING
 # ==============================
 @st.cache_resource
-import pickle
-
-@st.cache_resource
 def load_svr():
     with open("ABC_SVR.pkl", "rb") as f:
         svr_model = pickle.load(f)
@@ -186,6 +183,7 @@ with col2:
             st.error(f"❌ Error saat prediksi: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
 
 
