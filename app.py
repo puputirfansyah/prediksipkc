@@ -64,8 +64,8 @@ model_A, model_B, model_C = load_cnn_models()
 # ==============================
 @st.cache_resource
 def load_svr():
-    svr_model = joblib.load("ABC_SVR.pkl")
-    scaler = joblib.load("standarscaler.pkl")
+    svr_model = pickle.load("ABC_SVR.pkl")
+    scaler = pickle.load("standarscaler.pkl")
     return svr_model, scaler
 
 svr_model, scaler = load_svr()
@@ -180,3 +180,4 @@ with col2:
             st.error(f"❌ Error saat prediksi: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
