@@ -1,5 +1,4 @@
 import streamlit as st
-import tensorflow as tf
 import numpy as np
 import joblib
 from PIL import Image
@@ -180,4 +179,5 @@ with col2:
             st.error(f"❌ Error saat prediksi: {e}")
 
     st.markdown("</div>", unsafe_allow_html=True)
+
 
